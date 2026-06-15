@@ -172,6 +172,54 @@ class CategoryProvider extends ChangeNotifier {
     setEditData(category);
   }
 
+  /// BUG #4: versi create yang menerima name langsung dari controller milik page,
+  /// sehingga tidak ada konflik dengan nameController provider.
+  Future<void> createCategoryWithName(BuildContext context, String name) async {
+    if (name.isEmpty) return;
+    try {
+      final response = await Dio().post(
+        '$baseUrl/categories',
+        data: {'name': name},
+      );
+      if (!context.mounted) return;
+      if (response.statusCode == 201 && response.data['message'] == 'Success') {
+        alertSuccess(context, 'Kategori berhasil ditambahkan');
+        await getCategories(context);
+      } else {
+        alertFailed(
+            context, response.data['error'] ?? 'Gagal menambahkan kategori');
+      }
+    } on DioException catch (e) {
+      if (context.mounted) {
+        alertFailed(context, 'Error: ${e.message ?? 'Terjadi kesalahan'}');
+      }
+    }
+  }
+
+  /// BUG #4: versi update yang menerima name langsung dari controller milik page.
+  Future<void> updateCategoryWithName(
+      BuildContext context, int id, String name) async {
+    if (name.isEmpty) return;
+    try {
+      final response = await Dio().patch(
+        '$baseUrl/categories/$id',
+        data: {'name': name},
+      );
+      if (!context.mounted) return;
+      if (response.statusCode == 200 && response.data['message'] == 'Success') {
+        alertSuccess(context, 'Kategori berhasil diperbarui');
+        await getCategories(context);
+      } else {
+        alertFailed(
+            context, response.data['error'] ?? 'Gagal memperbarui kategori');
+      }
+    } on DioException catch (e) {
+      if (context.mounted) {
+        alertFailed(context, 'Error: ${e.message ?? 'Terjadi kesalahan'}');
+      }
+    }
+  }
+
   // ─── Internal helpers ─────────────────────────────────────────────────────
 
   void _setState(CategoryState state) {

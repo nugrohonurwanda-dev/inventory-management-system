@@ -11,12 +11,22 @@ class CategoryPage extends StatefulWidget {
 }
 
 class _CategoryPageState extends State<CategoryPage> {
+  // BUG #4: controller terpisah khusus untuk form create di halaman utama
+  final TextEditingController _createController = TextEditingController();
+  final GlobalKey<FormState> _createFormKey = GlobalKey<FormState>();
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<CategoryProvider>().getCategory(context);
     });
+  }
+
+  @override
+  void dispose() {
+    _createController.dispose();
+    super.dispose();
   }
 
   @override
@@ -30,25 +40,24 @@ class _CategoryPageState extends State<CategoryPage> {
         padding: const EdgeInsets.all(8.0),
         child: Column(
           children: [
+            // Form create — pakai _createController & _createFormKey sendiri
             Form(
-              key: context.read<CategoryProvider>().formCategory,
-              child: Consumer<CategoryProvider>(
-                builder: (context, provider, _) => TextFormField(
-                  controller: provider.nameController,
-                  decoration: InputDecoration(
-                    labelText: 'Category Name',
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.add),
-                      onPressed: () => provider.createCategory(context),
-                    ),
+              key: _createFormKey,
+              child: TextFormField(
+                controller: _createController,
+                decoration: InputDecoration(
+                  labelText: 'Category Name',
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.add),
+                    onPressed: () => _handleCreate(context),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter a category name';
-                    }
-                    return null;
-                  },
                 ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a category name';
+                  }
+                  return null;
+                },
               ),
             ),
             Expanded(
@@ -75,7 +84,10 @@ class _CategoryPageState extends State<CategoryPage> {
                                 IconButton(
                                   icon: const Icon(Icons.edit),
                                   onPressed: () => _showUpdateDialog(
-                                      context, provider, category.id!),
+                                      context,
+                                      provider,
+                                      category.id!,
+                                      category.name ?? ''),
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.delete),
@@ -99,37 +111,58 @@ class _CategoryPageState extends State<CategoryPage> {
     );
   }
 
-  void _showUpdateDialog(
-      BuildContext context, CategoryProvider provider, int categoryId) {
-    provider.detailCategory(context, categoryId);
+  // Pakai _createController untuk create, bukan provider.nameController
+  Future<void> _handleCreate(BuildContext context) async {
+    if (!(_createFormKey.currentState?.validate() ?? false)) return;
+    final provider = context.read<CategoryProvider>();
+    await provider.createCategoryWithName(
+        context, _createController.text.trim());
+    _createController.clear();
+  }
+
+  void _showUpdateDialog(BuildContext context, CategoryProvider provider,
+      int categoryId, String currentName) {
+    // Controller terpisah khusus untuk dialog edit
+    final editController = TextEditingController(text: currentName);
+    final editFormKey = GlobalKey<FormState>();
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Update Category'),
-        content: TextFormField(
-          controller: provider.nameController,
-          decoration: const InputDecoration(
-            labelText: 'Category Name',
+        content: Form(
+          key: editFormKey,
+          child: TextFormField(
+            controller: editController,
+            decoration: const InputDecoration(
+              labelText: 'Category Name',
+            ),
+            autofocus: true,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter a category name';
+              }
+              return null;
+            },
           ),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Please enter a category name';
-            }
-            return null;
-          },
         ),
         actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Batal'),
+          ),
           ElevatedButton(
             onPressed: () {
-              if (provider.formCategory.currentState?.validate() ?? false) {
-                provider.updateCategory(context, categoryId);
-                Navigator.of(context).pop();
+              if (editFormKey.currentState?.validate() ?? false) {
+                Navigator.of(dialogContext).pop();
+                provider.updateCategoryWithName(
+                    context, categoryId, editController.text.trim());
               }
             },
             child: const Text('Update'),
           ),
         ],
       ),
-    );
+    ).then((_) => editController.dispose());
   }
 }

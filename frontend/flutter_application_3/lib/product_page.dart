@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_application_3/providers/product_provider.dart';
+import 'package:flutter_application_3/providers/category_provider.dart';
 import 'package:flutter_application_3/models/product_model.dart';
 
 class ProductPage extends StatefulWidget {
@@ -14,9 +15,10 @@ class _ProductPageState extends State<ProductPage> {
   @override
   void initState() {
     super.initState();
-    // Fetch data setelah frame pertama selesai render
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Fetch produk dan kategori sekaligus
       context.read<ProductProvider>().getProducts(context);
+      context.read<CategoryProvider>().getCategories(context);
     });
   }
 
@@ -87,22 +89,19 @@ class _ProductPageState extends State<ProductPage> {
                   return Card(
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: Colors.blue.shade50,
-                        child: Text(
-                          '${product.qty ?? 0}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue,
-                          ),
-                        ),
-                      ),
+                      // ── GAP #4: tampilkan gambar produk ───────────────────
+                      leading: _buildProductImage(product),
                       title: Text(
                         product.name ?? '',
                         style: const TextStyle(fontWeight: FontWeight.w500),
                       ),
-                      subtitle: Text(
-                        'Kategori: ${product.category?.name ?? 'ID ${product.categoryId}'}',
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                              'Kategori: ${product.category?.name ?? 'ID ${product.categoryId}'}'),
+                          Text('Qty: ${product.qty ?? 0}'),
+                        ],
                       ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -136,10 +135,40 @@ class _ProductPageState extends State<ProductPage> {
     );
   }
 
+  // ── GAP #4: widget gambar produk ──────────────────────────────────────────
+  Widget _buildProductImage(Data product) {
+    if (product.url != null && product.url!.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.network(
+          product.url!,
+          width: 48,
+          height: 48,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _qtyAvatar(product),
+        ),
+      );
+    }
+    return _qtyAvatar(product);
+  }
+
+  Widget _qtyAvatar(Data product) {
+    return CircleAvatar(
+      backgroundColor: Colors.blue.shade50,
+      child: Text(
+        '${product.qty ?? 0}',
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          color: Colors.blue,
+        ),
+      ),
+    );
+  }
+
+  // ── Dialog tambah / edit produk ───────────────────────────────────────────
   void _showProductDialog(BuildContext outerContext, {Data? product}) {
     final provider = outerContext.read<ProductProvider>();
 
-    // Set data jika edit, clear jika tambah baru
     if (product != null) {
       provider.setEditData(product);
     } else {
@@ -156,6 +185,7 @@ class _ProductPageState extends State<ProductPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Nama produk
                 TextFormField(
                   controller: provider.nameController,
                   decoration: const InputDecoration(labelText: 'Nama Produk *'),
@@ -163,6 +193,7 @@ class _ProductPageState extends State<ProductPage> {
                       v == null || v.trim().isEmpty ? 'Nama wajib diisi' : null,
                 ),
                 const SizedBox(height: 8),
+                // Qty
                 TextFormField(
                   controller: provider.qtyController,
                   decoration: const InputDecoration(labelText: 'Qty *'),
@@ -174,19 +205,30 @@ class _ProductPageState extends State<ProductPage> {
                   },
                 ),
                 const SizedBox(height: 8),
-                TextFormField(
-                  controller: provider.categoryIdController,
-                  decoration: const InputDecoration(labelText: 'Category ID *'),
-                  keyboardType: TextInputType.number,
-                  validator: (v) {
-                    if (v == null || v.isEmpty) {
-                      return 'Category ID wajib diisi';
-                    }
-                    if (int.tryParse(v) == null) return 'Harus berupa angka';
-                    return null;
+                // ── GAP #3: dropdown kategori ──────────────────────────────
+                Consumer<CategoryProvider>(
+                  builder: (context, catProvider, _) {
+                    final categories = catProvider.listCategory;
+                    return DropdownButtonFormField<int>(
+                      initialValue: provider.selectedCategoryId,
+                      decoration:
+                          const InputDecoration(labelText: 'Kategori *'),
+                      items: categories.map((cat) {
+                        return DropdownMenuItem<int>(
+                          value: cat.id,
+                          child: Text(cat.name ?? ''),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        provider.selectedCategoryId = val;
+                      },
+                      validator: (v) =>
+                          v == null ? 'Kategori wajib dipilih' : null,
+                    );
                   },
                 ),
                 const SizedBox(height: 8),
+                // URL gambar (opsional)
                 TextFormField(
                   controller: provider.urlController,
                   decoration:
@@ -203,8 +245,7 @@ class _ProductPageState extends State<ProductPage> {
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.of(dialogContext).pop(); // tutup dialog dulu
-              // Pakai outerContext — dialogContext sudah di-pop
+              Navigator.of(dialogContext).pop();
               if (product == null) {
                 provider.createProduct(outerContext);
               } else {
@@ -234,8 +275,7 @@ class _ProductPageState extends State<ProductPage> {
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () {
               Navigator.of(dialogContext).pop();
-              provider.deleteProduct(
-                  outerContext, product.id!); // outer context
+              provider.deleteProduct(outerContext, product.id!);
             },
             child: const Text('Hapus', style: TextStyle(color: Colors.white)),
           ),

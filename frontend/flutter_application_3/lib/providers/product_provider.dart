@@ -13,8 +13,10 @@ class ProductProvider extends ChangeNotifier {
   final formProduct = GlobalKey<FormState>();
   final TextEditingController nameController = TextEditingController();
   final TextEditingController qtyController = TextEditingController();
-  final TextEditingController categoryIdController = TextEditingController();
   final TextEditingController urlController = TextEditingController();
+
+  // GAP #3: pakai selectedCategoryId, bukan text controller
+  int? selectedCategoryId;
 
   ProductState _productState = ProductState.initial;
   List<Data> _listProduct = [];
@@ -64,7 +66,7 @@ class ProductProvider extends ChangeNotifier {
       final requestBody = {
         'name': nameController.text.trim(),
         'qty': int.tryParse(qtyController.text) ?? 0,
-        'categoryId': int.tryParse(categoryIdController.text),
+        'categoryId': selectedCategoryId,
         if (urlController.text.trim().isNotEmpty)
           'url': urlController.text.trim(),
       };
@@ -100,7 +102,7 @@ class ProductProvider extends ChangeNotifier {
       final requestBody = {
         'name': nameController.text.trim(),
         'qty': int.tryParse(qtyController.text) ?? 0,
-        'categoryId': int.tryParse(categoryIdController.text),
+        'categoryId': selectedCategoryId,
         if (urlController.text.trim().isNotEmpty)
           'url': urlController.text.trim(),
       };
@@ -149,16 +151,17 @@ class ProductProvider extends ChangeNotifier {
   void setEditData(Data product) {
     nameController.text = product.name ?? '';
     qtyController.text = product.qty?.toString() ?? '';
-    categoryIdController.text = product.categoryId?.toString() ?? '';
+    selectedCategoryId = product.categoryId;
     urlController.text = product.url ?? '';
+    notifyListeners();
   }
 
-  // Public agar bisa dipanggil dari product_page saat buka dialog add
   void clearForm() {
     nameController.clear();
     qtyController.clear();
-    categoryIdController.clear();
+    selectedCategoryId = null;
     urlController.clear();
+    notifyListeners();
   }
 
   void _setState(ProductState state) {
