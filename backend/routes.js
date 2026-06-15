@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 // DEFINE CONTROLLER (IMPORT CONTRONLLER)
-const { register, login, updateImageProfile, getUsers } = require('./controllers/userController');
+const { register, login, updateImageProfile, getUsers, updatePassword } = require('./controllers/userController');
 const { getAllCategories, creteateNewCategory, detailCategoryById , updateCategoryById, deleteCategoryById} = require('./controllers/categoryController');
 const { getAllProducts, getProductById, createProduct, updateProduct, deleteProduct } = require('./controllers/productController');
 
@@ -20,6 +20,9 @@ router.post('/login', login);
 
 // ROUTE HANDLING IMAGE PROFILE
 router.patch('/update-image/:id', upload.single('image'), updateImageProfile)
+
+// ROUTE HANDLING UPDATE PASSWORD
+router.patch('/update-password/:id', updatePassword)
 
 // ROUTE UNTUK HANDLE DATA  CATEGORY
 router.get('/categories', getAllCategories);

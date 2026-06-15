@@ -5,7 +5,7 @@ const getAllProducts = async (req, res) => {
     const { userid } = req.params;
     const products = await Product.findAll({
       where: { createdBy: userid },
-      include: { model: Category },
+      include: [{ model: Category, as: 'category' }],
     });
 
     products.length > 0
@@ -21,8 +21,8 @@ const getProductById = async (req, res) => {
     const { id } = req.params;
 
     const product = await Product.findOne({
-      where: { id: id},
-      include: { model: Category},
+      where: { id: id },
+      include: [{ model: Category, as: 'category' }],
     });
 
     return res.json({
