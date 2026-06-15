@@ -1,0 +1,13 @@
+# MENGHINDARI FILE FILE DENGAN FORMAT BERIKUT TERUPLOAD 
+# KE DALAM REPOSITORY
+
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.ico
+*.webp
+*.tiff
+*.bmp
+*.pdf
